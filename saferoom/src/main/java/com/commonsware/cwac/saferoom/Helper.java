@@ -147,7 +147,7 @@ class Helper implements SupportSQLiteOpenHelper {
 
   abstract static class OpenHelper extends SQLiteOpenHelper {
     private volatile Database wrappedDb;
-    private Boolean walEnabled;
+    private volatile Boolean walEnabled;
 
     OpenHelper(Context context, String name, int version) {
       super(context, name, null, version, null);
@@ -157,9 +157,7 @@ class Helper implements SupportSQLiteOpenHelper {
       SQLiteDatabase db=super.getWritableDatabase(passphrase);
       SupportSQLiteDatabase result=getWrappedDb(db);
 
-      if (walEnabled!=null) {
-        setupWAL(wrappedDb);
-      }
+      setupWAL(wrappedDb);
 
       return result;
     }
@@ -181,15 +179,19 @@ class Helper implements SupportSQLiteOpenHelper {
     }
 
     private void setupWAL(Database db) {
-      if (!db.isReadOnly()) {
-        if (walEnabled) {
-          db.enableWriteAheadLogging();
-        }
-        else {
-          db.disableWriteAheadLogging();
-        }
+      final Boolean walEnabled = this.walEnabled;
+      if (walEnabled != null) {
+        synchronized (this) {
+          if (this.walEnabled != null && !db.isReadOnly()) {
+            if (this.walEnabled) {
+              db.enableWriteAheadLogging();
+            } else {
+              db.disableWriteAheadLogging();
+            }
 
-        walEnabled=null;
+            this.walEnabled = null;
+          }
+        }
       }
     }
 
